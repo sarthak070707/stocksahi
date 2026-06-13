@@ -156,5 +156,8 @@ StockSahi is an **educational project**. It is **not** investment advice and **n
 
 ## License
 
-<!-- Pick one. If you don't want others reusing the code, you can state that explicitly instead of an open-source license. -->
-This project is shared for learning and portfolio purposes. _(Add a license here — e.g. MIT — or state usage terms.)_
+## License
+
+© 2026 Sarthak Arya. All rights reserved.
+
+This project is shared publicly for learning and portfolio purposes. The code is not licensed for reuse, redistribution, or commercial use without permission.
