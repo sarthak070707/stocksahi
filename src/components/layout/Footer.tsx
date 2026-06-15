@@ -10,7 +10,7 @@
 
 "use client";
 
-import { Info } from "lucide-react";
+import { Info, Linkedin } from "lucide-react";
 
 export function Footer() {
   return (
@@ -35,6 +35,19 @@ export function Footer() {
               decision. Past performance does not guarantee future results.
             </p>
           </div>
+        </div>
+
+        {/* Built by — attribution */}
+        <div className="mt-4 flex items-center justify-center">
+          <a
+            href="https://www.linkedin.com/in/sarthak-arya-059920303/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-secondary/50 px-4 py-1.5 text-sm font-medium text-foreground transition-smooth hover:border-primary/50 hover:text-primary"
+          >
+            <Linkedin className="h-4 w-4" />
+            Built by Sarthak Arya
+          </a>
         </div>
 
         {/* Bottom line */}
