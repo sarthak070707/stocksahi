@@ -158,8 +158,6 @@ StockSahi is an **educational project**. It is **not** investment advice and **n
 
 ## License
 
-## License
-
 © 2026 Sarthak Arya. All rights reserved.
 
 This project is shared publicly for learning and portfolio purposes. The code is not licensed for reuse, redistribution, or commercial use without permission.
