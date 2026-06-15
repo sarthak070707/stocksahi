@@ -66,7 +66,7 @@ export function TradeHistory({ open, onOpenChange }: TradeHistoryProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-2xl p-0 gap-0 overflow-hidden">
         <DialogHeader className="px-5 pt-5 pb-3">
           <DialogTitle className="text-lg">Trade History</DialogTitle>
         </DialogHeader>

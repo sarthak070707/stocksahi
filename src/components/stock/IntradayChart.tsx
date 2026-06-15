@@ -524,10 +524,10 @@ export function IntradayChart({ symbol, height = 420, name, fallbackPrice }: Int
       </div>
     )}
     <Card className={isFullscreen ? "h-full border-0 shadow-none" : ""}>
-      <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
+      <CardHeader className="pb-2 flex flex-col items-stretch gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle className="text-base font-semibold">Chart</CardTitle>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-0.5 rounded-lg bg-secondary p-0.5">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:overflow-visible sm:pb-0">
+          <div className="flex shrink-0 items-center gap-0.5 rounded-lg bg-secondary p-0.5">
             {TIMEFRAMES.map((t) => (
               <button
                 key={t}
@@ -542,7 +542,7 @@ export function IntradayChart({ symbol, height = 420, name, fallbackPrice }: Int
               </button>
             ))}
           </div>
-          <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)} className="gap-1.5">
+          <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)} className="gap-1.5 shrink-0">
             <SlidersHorizontal className="h-3.5 w-3.5" />
             Indicators
             {activeIds.length > 0 && (
@@ -551,7 +551,7 @@ export function IntradayChart({ symbol, height = 420, name, fallbackPrice }: Int
               </Badge>
             )}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setLinesOpen(true)} className="gap-1.5">
+          <Button variant="outline" size="sm" onClick={() => setLinesOpen(true)} className="gap-1.5 shrink-0">
             <span className="text-base leading-none">—</span>
             Lines
             {hLines.length > 0 && (
@@ -561,7 +561,7 @@ export function IntradayChart({ symbol, height = 420, name, fallbackPrice }: Int
             )}
           </Button>
           {isFullscreen && name && (
-            <div className="flex items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1">
               <button
                 onClick={() => setOverlaySide("buy")}
                 title="Buy (paper)"
@@ -582,7 +582,7 @@ export function IntradayChart({ symbol, height = 420, name, fallbackPrice }: Int
             variant="outline"
             size="sm"
             onClick={toggleFullscreen}
-            className="gap-1.5"
+            className="gap-1.5 shrink-0"
             title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
           >
             {isFullscreen ? (
