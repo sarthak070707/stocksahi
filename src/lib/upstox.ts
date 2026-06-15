@@ -312,6 +312,7 @@ export interface UpstoxCandle {
   low: number;
   close: number;
   price: number; // = close, for the line chart
+  volume?: number; // shares traded — needed for volume-based indicators
 }
 
 /**
@@ -357,6 +358,7 @@ export async function fetchUpstoxCandles(
         low: c[3],
         close: c[4],
         price: c[4],
+        volume: c[5],
       }))
       .filter(
         (p) =>
@@ -414,6 +416,7 @@ export async function fetchUpstoxHistoricalV3(
         low: c[3],
         close: c[4],
         price: c[4],
+        volume: c[5],
       }))
       .filter(
         (p) =>
@@ -469,6 +472,7 @@ export async function fetchUpstoxIntradayCandles(
         low: c[3],
         close: c[4],
         price: c[4],
+        volume: c[5],
       }))
       .filter(
         (p) =>

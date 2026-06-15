@@ -107,6 +107,7 @@ export async function GET(request: NextRequest) {
     high: c.high,
     low: c.low,
     close: c.close,
+    volume: c.volume,
   }));
 
   return NextResponse.json({ candles });
