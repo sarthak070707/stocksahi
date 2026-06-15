@@ -2,6 +2,8 @@
 
 **Indian stock research, explained simply.**
 
+🔗 **Live app:** [stocksahi.vercel.app](https://stocksahi.vercel.app)
+
 StockSahi is a beginner-friendly research and learning app for the Indian stock market (NSE). It pairs real market data with plain-English explanations, and it teaches the mechanics of trading honestly — what to look at and why — without ever telling anyone what to buy or sell.
 
 It has two modes: **Swing** (longer-term research — fundamentals, quality, sector context) and **Intraday** (live charts, indicators, and a hands-on learning workspace with paper trading).
@@ -153,6 +155,8 @@ When deploying to Vercel, add `UPSTOX_ACCESS_TOKEN` as an environment variable i
 StockSahi is an **educational project**. It is **not** investment advice and **not** a SEBI-registered advisory service. It does not provide buy/sell/hold recommendations, trading signals, or price targets. Nothing in the app should be taken as a recommendation to make any financial decision. Always do your own research and consult a SEBI-registered advisor for personalised advice. Use at your own risk.
 
 ---
+
+## License
 
 ## License
 
