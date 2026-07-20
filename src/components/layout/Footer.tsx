@@ -38,7 +38,17 @@ export function Footer() {
         </div>
 
         {/* Built by — attribution */}
-        <div className="mt-4 flex items-center justify-center">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <span className="text-sm text-muted-foreground">Built by</span>
+          <a
+            href="https://www.linkedin.com/in/hitaishi-singh-a14319258/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-secondary/50 px-4 py-1.5 text-sm font-medium text-foreground transition-smooth hover:border-primary/50 hover:text-primary"
+          >
+            <Linkedin className="h-4 w-4" />
+            Hitaishi Singh
+          </a>
           <a
             href="https://www.linkedin.com/in/sarthak-arya-059920303/"
             target="_blank"
@@ -46,7 +56,7 @@ export function Footer() {
             className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-secondary/50 px-4 py-1.5 text-sm font-medium text-foreground transition-smooth hover:border-primary/50 hover:text-primary"
           >
             <Linkedin className="h-4 w-4" />
-            Built by Sarthak Arya
+            Sarthak Arya
           </a>
         </div>
 
