@@ -13,7 +13,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LessonCard, type Lesson } from "./IntradayLessons";
-import { ClipboardList, GitMerge, LogOut, FlaskConical, Scale, Route } from "lucide-react";
+import { ClipboardList, GitMerge, LogOut, FlaskConical, Scale, Route, Gauge } from "lucide-react";
 
 const STRATEGY_LESSONS: Lesson[] = [
   {
@@ -66,6 +66,34 @@ const STRATEGY_LESSONS: Lesson[] = [
           agree and price can still do the opposite, because they describe the past and the
           past does not bind the future. Confluence improves the quality of your reasoning;
           it never removes risk.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "mfi-pressure",
+    icon: Gauge,
+    title: "Buyers vs sellers: who's in power (and the catch)",
+    teaser: "MFI shows the day's buying vs selling pressure — but one tool never decides a trade.",
+    body: (
+      <>
+        <p>
+          MFI (Money Flow Index) blends price and volume to show which side has been more
+          active — buyers or sellers. Above 50, buyers have been in control; below 50,
+          sellers. It is one of the more popular ways to gauge who holds the pressure on the
+          day, which is why many intraday traders keep an eye on it.
+        </p>
+        <p>
+          The zones people quote are overbought above 80 and oversold below 20. But these
+          describe pressure that has already happened — not what comes next. In a strong
+          trend MFI can sit above 80 while price keeps climbing, and oversold can stay
+          oversold for a long time. An extreme reading is a cue to slow down and look closer,
+          and conditions can be choppier around it — never a signal to act.
+        </p>
+        <p>
+          This is exactly why one indicator is never enough. However useful MFI is, it is a
+          single input — a complete read needs trend, volume, context and your own plan to
+          line up. On its own, no number decides a trade.
         </p>
       </>
     ),

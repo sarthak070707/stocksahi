@@ -12,8 +12,10 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLivePrice } from "@/hooks/useLivePrice";
+import { isPastSquareOff } from "@/lib/market-hours";
 import {
   usePaperTrading,
   pnlFor,
@@ -61,11 +63,35 @@ export function OpenPositionsPanel() {
 }
 
 function OpenPositionRow({ position: p }: { position: OpenPosition }) {
-  const { closePosition } = usePaperTrading();
+  const { closePosition, autoSquareOff } = usePaperTrading();
   const live = useLivePrice(p.symbol);
   const { toast } = useToast();
 
   const price = live.ltp ?? 0;
+
+  // Broker auto square-off at the 3:05 cutoff. Once the market is past 3:05, any
+  // still-open intraday position is squared off at the last traded price (which
+  // the market is still printing until 3:30, so it's a real price). Fires once.
+  const [tick, setTick] = useState(0);
+  const squaredRef = useRef(false);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 20000);
+    return () => clearInterval(id);
+  }, []);
+  useEffect(() => {
+    if (squaredRef.current) return;
+    if (isPastSquareOff() && price > 0) {
+      squaredRef.current = true;
+      const res = autoSquareOff(p.id, price);
+      if (res.ok) {
+        toast({
+          title: "Auto square-off",
+          description: `${p.symbol} was squared off at the 3:05 PM intraday cutoff (incl. the auto square-off charge).`,
+        });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tick, price]);
   const livePnl = price > 0 ? pnlFor(p.direction, p.entryPrice, price, p.quantity) : 0;
   const basis = p.marginUsed ?? p.quantity * p.entryPrice;
   const livePnlPct = basis > 0 ? (livePnl / basis) * 100 : 0;

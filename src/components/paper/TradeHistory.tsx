@@ -122,6 +122,15 @@ export function TradeHistory({ open, onOpenChange }: TradeHistoryProps) {
                         <div className="text-xs text-muted-foreground mt-1">
                           In ₹{t.entryPrice.toLocaleString("en-IN", { maximumFractionDigits: 2 })} → Out ₹{t.exitPrice.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                         </div>
+                        {t.charges > 0 && (
+                          <div className="text-[11px] text-muted-foreground/80 mt-0.5">
+                            Gross {t.grossPnl >= 0 ? "+" : ""}₹{t.grossPnl.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                            {" · "}
+                            <span title="Simulated broker charges — what a real broker would deduct. StockSahi is free and charges nothing.">
+                              charges −₹{t.charges.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        )}
                         <div className="text-[11px] text-muted-foreground/70 mt-0.5">
                           {formatWhen(t.entryTime)} → {formatWhen(t.exitTime)}
                         </div>
@@ -159,7 +168,9 @@ export function TradeHistory({ open, onOpenChange }: TradeHistoryProps) {
         <p className="px-5 pb-4 text-[11px] text-muted-foreground/80">
           This is a factual record of your practice trades to help you learn from
           your own decisions. It isn&apos;t advice, and past results don&apos;t
-          predict future ones.
+          predict future ones. Charges shown are simulated — what a real broker
+          would deduct on a trade like this — so your practice P&amp;L reflects
+          real costs. StockSahi is free and charges nothing.
         </p>
       </DialogContent>
     </Dialog>

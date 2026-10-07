@@ -24,7 +24,7 @@ import {
   MetricExplanation,
   SectorComparisonRow,
 } from "./stock-types";
-import { getInstrument, fetchUpstoxIncome, fetchUpstoxRatios, fetchUpstoxCandles } from "./upstox";
+import { getInstrument, fetchUpstoxIncome, fetchUpstoxRatios, fetchUpstoxCandles, fetchUpstoxNews } from "./upstox";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -813,36 +813,49 @@ function categorizeNews(title: string): string | undefined {
   return undefined;
 }
 
+// A large-cap whose Upstox feed is reliably rich in GENERAL MARKET news
+// (Sensex/Nifty moves, "stocks to watch", sector round-ups). Used to top up any
+// stock whose own news is thin, so the panel always has fresh, real, clickable
+// headlines rather than an empty box. Market items are labelled "Market" so a
+// reader never mistakes them for news specific to the stock they're viewing.
+const MARKET_NEWS_SYMBOL = "RELIANCE";
+
+function mapNews(items: Awaited<ReturnType<typeof fetchUpstoxNews>>, forceMarket = false): NewsItem[] {
+  if (!items) return [];
+  return items.map((n) => ({
+    id: n.id,
+    title: n.title,
+    source: "Upstox News",
+    date: n.publishedAtMs ? new Date(n.publishedAtMs).toISOString().split("T")[0] : "",
+    summary: n.summary || "",
+    url: n.url,
+    category: forceMarket ? "Market" : categorizeNews(n.title),
+  }));
+}
+
 async function fetchNews(symbol: string): Promise<NewsItem[] | null> {
   try {
-    const res = (await yahooFinance.search(
-      toYahooSymbol(symbol),
-      { newsCount: 6, quotesCount: 0 },
-      { validateResult: false }
-    )) as unknown as { news?: Record<string, unknown>[] };
+    // 1) The stock's own news (India/NSE-native, past ~7 days, same token/key).
+    const own = mapNews(await fetchUpstoxNews(symbol));
 
-    const news = res?.news ?? [];
-    const items: NewsItem[] = [];
-    for (const n of news) {
-      if (!n?.title) continue;
-      let date = "";
-      const t = n.providerPublishTime;
-      if (t instanceof Date) date = t.toISOString().split("T")[0];
-      else if (typeof t === "number")
-        date = new Date(t < 1e12 ? t * 1000 : t).toISOString().split("T")[0];
-      const title = String(n.title);
-      const url = typeof n.link === "string" ? n.link : undefined;
-      items.push({
-        id: String(n.uuid || n.link || n.title),
-        title,
-        source: String(n.publisher || "News"),
-        date,
-        summary: n.publisher ? `Reported by ${String(n.publisher)}.` : "",
-        url,
-        category: categorizeNews(title),
-      });
+    // 2) If the stock has few headlines of its own, top up with general market
+    //    news so the panel stays useful. Skip the extra fetch when the stock is
+    //    already the market-news source, or already has plenty of its own.
+    const TARGET = 5;
+    let combined = own;
+    if (own.length < TARGET && symbol.toUpperCase() !== MARKET_NEWS_SYMBOL) {
+      const market = mapNews(await fetchUpstoxNews(MARKET_NEWS_SYMBOL), true);
+      // De-dupe by url/title, keep the stock's own news first, then market news.
+      const seen = new Set(own.map((n) => n.url || n.title));
+      for (const m of market) {
+        if (combined.length >= TARGET) break;
+        if (seen.has(m.url || m.title)) continue;
+        seen.add(m.url || m.title);
+        combined.push(m);
+      }
     }
-    return items.length > 0 ? items : null;
+
+    return combined.length > 0 ? combined : null;
   } catch {
     return null;
   }
@@ -994,8 +1007,12 @@ export async function getStock(symbol: string): Promise<StockDetail | null> {
   );
 
   // 5) Live news headlines (falls back to curated if Yahoo returns none)
+  // Use live Upstox news when available; otherwise show NO news rather than the
+  // old built-in placeholder headlines — stale news presented as recent would be
+  // misleading, which the app is built to avoid. An empty list renders a clean
+  // "no recent news" state.
   const news = await fetchNews(base.symbol);
-  if (news && news.length > 0) merged.news = news;
+  merged.news = news && news.length > 0 ? news : [];
 
   return merged;
 }

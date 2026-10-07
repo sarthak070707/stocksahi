@@ -10,14 +10,21 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useLivePrice } from "@/hooks/useLivePrice";
 import { usePaperTrading } from "@/components/paper/PaperTradingContext";
-import { Wallet, ArrowDownCircle } from "lucide-react";
+import { Wallet, ArrowDownCircle, Clock, Moon } from "lucide-react";
+import {
+  getMarketStatus,
+  type MarketStatus,
+  MARKET_SQUAREOFF_LABEL,
+  MARKET_OPEN_LABEL,
+  MARKET_CLOSE_LABEL,
+} from "@/lib/market-hours";
 
 export type TradeSide = "buy" | "sell";
 
@@ -41,6 +48,23 @@ export function TradePanel({
   const [qty, setQty] = useState("");
   const [note, setNote] = useState("");
 
+  // Market status (IST). Re-check periodically so the panel flips to "closed"
+  // at 3:05 / 9:15 without needing a refresh. We never touch price here — this
+  // only reports the session so the UI can explain what the user sees.
+  const [marketStatus, setMarketStatus] = useState<MarketStatus>("closed");
+  useEffect(() => {
+    const update = () => setMarketStatus(getMarketStatus());
+    update();
+    const id = setInterval(update, 30000);
+    return () => clearInterval(id);
+  }, []);
+  const tradingOpen = marketStatus === "open"; // 9:15–3:05: real trades allowed
+  const isClosing = marketStatus === "closing"; // 3:05–3:30: live but NO new trades
+  const isClosed = marketStatus === "closed"; // after 3:30 / weekend: frozen practice
+  // New intraday trades are blocked only in the 3:05–3:30 cutoff window. During
+  // open hours they're real; after 3:30 they're allowed as frozen-price practice.
+  const newTradeBlocked = isClosing;
+
   const price = live.ltp ?? fallbackPrice ?? 0;
   const quantity = parseInt(qty, 10);
   const value = Number.isFinite(quantity) && quantity > 0 ? quantity * price : 0; // full position value
@@ -50,6 +74,14 @@ export function TradePanel({
   const isBuy = side === "buy";
 
   const handleOpen = (direction: "long" | "short") => {
+    if (newTradeBlocked) {
+      toast({
+        title: `No new trades after ${MARKET_SQUAREOFF_LABEL}`,
+        description: `Intraday orders close at ${MARKET_SQUAREOFF_LABEL}. The market is live until ${MARKET_CLOSE_LABEL}, but no new positions can be opened now.`,
+        variant: "destructive",
+      });
+      return;
+    }
     const res = openPosition({ symbol, name, direction, quantity, price, note });
     if (res.ok) {
       toast({
@@ -77,8 +109,49 @@ export function TradePanel({
         </div>
         <div className="text-xs text-muted-foreground mt-0.5">
           {price > 0 ? `INR ${price.toLocaleString("en-IN", { maximumFractionDigits: 2 })}` : "—"}
-          {live.status === "live" && <span className="ml-1.5 text-[10px] text-emerald-600">LIVE</span>}
+          {live.status === "live" && tradingOpen && (
+            <span className="ml-1.5 text-[10px] text-emerald-600">LIVE</span>
+          )}
         </div>
+
+        {/* Market status — three states. */}
+        {tradingOpen && (
+          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-emerald-600">
+            <Clock className="h-3 w-3 shrink-0" />
+            <span>
+              Market open · trading {MARKET_OPEN_LABEL}–{MARKET_SQUAREOFF_LABEL}
+            </span>
+          </div>
+        )}
+
+        {isClosing && (
+          <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-600">
+              <Clock className="h-3.5 w-3.5 shrink-0" />
+              Past {MARKET_SQUAREOFF_LABEL} · no new trades
+            </div>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              The market is still live until {MARKET_CLOSE_LABEL}, but intraday orders close
+              at {MARKET_SQUAREOFF_LABEL} — no real broker lets you open a new intraday
+              position now. Any position still open is squared off at the {MARKET_SQUAREOFF_LABEL}{" "}
+              cutoff.
+            </p>
+          </div>
+        )}
+
+        {isClosed && (
+          <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-600">
+              <Moon className="h-3.5 w-3.5 shrink-0" />
+              Market closed · no price activity
+            </div>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              There&apos;s no price movement right now — the next session opens at{" "}
+              {MARKET_OPEN_LABEL}. You can still place a practice trade to learn the mechanics,
+              but with no price movement your P&amp;L stays flat and no charges apply.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2">
@@ -123,18 +196,18 @@ export function TradePanel({
         {isBuy ? (
           <Button
             onClick={() => handleOpen("long")}
-            disabled={price <= 0 || !(quantity > 0) || notEnough}
+            disabled={price <= 0 || !(quantity > 0) || notEnough || newTradeBlocked}
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
           >
-            Buy to open (long)
+            {newTradeBlocked ? `No new trades after ${MARKET_SQUAREOFF_LABEL}` : "Buy to open (long)"}
           </Button>
         ) : (
           <Button
             onClick={() => handleOpen("short")}
-            disabled={price <= 0 || !(quantity > 0) || notEnough}
+            disabled={price <= 0 || !(quantity > 0) || notEnough || newTradeBlocked}
             className="w-full bg-rose-500 hover:bg-rose-600 text-white"
           >
-            Sell to open (short)
+            {newTradeBlocked ? `No new trades after ${MARKET_SQUAREOFF_LABEL}` : "Sell to open (short)"}
           </Button>
         )}
         {notEnough && (

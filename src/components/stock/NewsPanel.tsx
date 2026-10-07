@@ -26,10 +26,18 @@ export function NewsPanel({ news, symbol }: NewsPanelProps) {
           <CardTitle className="text-base">Recent News</CardTitle>
         </div>
         <p className="text-xs text-muted-foreground">
-          Headlines about {symbol} — for information only, not investment signals.
+          {symbol} and broader market headlines — for information only, not
+          investment signals.
         </p>
       </CardHeader>
       <CardContent>
+        {news.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-2">
+            No recent news for {symbol} right now. We only show recent, verified
+            headlines — when there&apos;s nothing recent, we say so rather than show
+            something stale.
+          </p>
+        ) : (
         <div className="space-y-3">
           {news.map((item) => {
             const Wrapper = item.url ? "a" : "div";
@@ -40,9 +48,13 @@ export function NewsPanel({ news, symbol }: NewsPanelProps) {
               <Wrapper
                 key={item.id}
                 {...linkProps}
-                className="group flex items-start gap-3 rounded-lg p-3 hover:bg-secondary/50 transition-smooth cursor-pointer"
+                className={`group flex items-start gap-3 rounded-lg p-3 transition-smooth ${
+                  item.url ? "hover:bg-secondary/50 cursor-pointer" : ""
+                }`}
               >
-                <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-smooth" />
+                {item.url && (
+                  <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-smooth" />
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium leading-snug">
                     {item.title}
@@ -68,6 +80,7 @@ export function NewsPanel({ news, symbol }: NewsPanelProps) {
             );
           })}
         </div>
+        )}
       </CardContent>
     </Card>
   );

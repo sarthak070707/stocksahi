@@ -30,6 +30,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { computeCharges } from "@/lib/charges";
+import { isMarketLive, isPastSquareOff } from "@/lib/market-hours";
 
 const STARTING_BALANCE = 100000; // INR 1,00,000 virtual
 const STORAGE_KEY = "stocksahi-paper";
@@ -62,9 +64,12 @@ export interface ClosedTrade {
   exitTime: number;
   leverage: number;
   marginUsed: number;
-  pnl: number;
-  pnlPercent: number; // return on the margin you put up (leveraged)
+  grossPnl: number; // P&L from price move alone, before charges
+  charges: number; // simulated broker charges (what a real broker would deduct)
+  pnl: number; // NET P&L = grossPnl - charges
+  pnlPercent: number; // return on the margin you put up (leveraged), net of charges
   holdMs: number;
+  autoExited?: boolean; // true if the broker auto-squared-off at the 3:05 cutoff
   note?: string;
 }
 
@@ -89,6 +94,7 @@ interface PaperContextValue extends PaperState {
     leverage?: number;
   }) => { ok: boolean; error?: string };
   closePosition: (positionId: string, price: number) => { ok: boolean; error?: string };
+  autoSquareOff: (positionId: string, price: number) => { ok: boolean; error?: string };
   reset: () => void;
 }
 
@@ -118,6 +124,10 @@ function migrate(state: PaperState): PaperState {
       ...t,
       leverage: t.leverage ?? 1,
       marginUsed: t.marginUsed ?? t.quantity * t.entryPrice,
+      // Trades closed before charges existed: no charges were applied, so the
+      // recorded pnl was already the gross (and net) figure.
+      charges: t.charges ?? 0,
+      grossPnl: t.grossPnl ?? t.pnl,
     })),
   };
 }
@@ -184,14 +194,30 @@ export function PaperTradingProvider({ children }: { children: ReactNode }) {
     return { ok: true };
   };
 
-  const closePosition: PaperContextValue["closePosition"] = (positionId, price) => {
-    if (!Number.isFinite(price) || price <= 0)
-      return { ok: false, error: "No live price available right now." };
-    const pos = state.open.find((p) => p.id === positionId);
-    if (!pos) return { ok: false, error: "Position not found." };
+  // Build the ClosedTrade record for a position exiting at `price`.
+  //  - `applyCharges`: false for after-hours practice closes (no real broker would
+  //     execute, so no charges — matches our honest "practice only" rule).
+  //  - `autoSquaredOff`: true when the broker auto-closed it at the 3:05 cutoff,
+  //     which adds the Rs 59 auto square-off fee on top of normal charges.
+  function buildClose(
+    pos: OpenPosition,
+    price: number,
+    opts: { applyCharges: boolean; autoSquaredOff: boolean }
+  ): ClosedTrade {
+    const grossPnl = pnlFor(pos.direction, pos.entryPrice, price, pos.quantity);
 
-    const pnl = pnlFor(pos.direction, pos.entryPrice, price, pos.quantity);
-    const closed: ClosedTrade = {
+    // A long buys at entry & sells at exit; a short sells at entry & buys at exit.
+    const buyValue =
+      pos.direction === "long" ? pos.entryPrice * pos.quantity : price * pos.quantity;
+    const sellValue =
+      pos.direction === "long" ? price * pos.quantity : pos.entryPrice * pos.quantity;
+
+    const charges = opts.applyCharges
+      ? computeCharges(buyValue, sellValue, opts.autoSquaredOff).total
+      : 0;
+    const pnl = grossPnl - charges;
+
+    return {
       id: pos.id,
       symbol: pos.symbol,
       name: pos.name,
@@ -203,14 +229,53 @@ export function PaperTradingProvider({ children }: { children: ReactNode }) {
       exitTime: Date.now(),
       leverage: pos.leverage,
       marginUsed: pos.marginUsed,
+      grossPnl,
+      charges,
       pnl,
-      // Return is measured on the margin you actually put up (leveraged %).
       pnlPercent: pos.marginUsed > 0 ? (pnl / pos.marginUsed) * 100 : 0,
       holdMs: Date.now() - pos.entryTime,
+      autoExited: opts.autoSquaredOff || undefined,
       note: pos.note,
     };
+  }
+
+  const closePosition: PaperContextValue["closePosition"] = (positionId, price) => {
+    if (!Number.isFinite(price) || price <= 0)
+      return { ok: false, error: "No live price available right now." };
+    const pos = state.open.find((p) => p.id === positionId);
+    if (!pos) return { ok: false, error: "Position not found." };
+
+    // Charges apply whenever the market is live (9:15 AM–3:30 PM) — including the
+    // 3:05–3:30 window, where prices still move and a close is a real trade. Only
+    // a close after 3:30 / on a weekend is after-hours practice with no charge
+    // (the panel already explains P&L stays flat then).
+    const applyCharges = isMarketLive();
+    const closed = buildClose(pos, price, { applyCharges, autoSquaredOff: false });
+
     setState((s) => ({
-      balance: s.balance + pos.marginUsed + pnl, // return margin adjusted by full P&L
+      balance: s.balance + pos.marginUsed + closed.pnl,
+      open: s.open.filter((p) => p.id !== positionId),
+      closed: [closed, ...s.closed],
+    }));
+    return { ok: true };
+  };
+
+  // Broker auto square-off at the 3:05 cutoff: closes an open intraday position
+  // at the given (last traded) price, applies full charges PLUS the Rs 59 auto
+  // square-off fee, and marks it as auto-exited. Called by the position row once
+  // the market is past 3:05, using the live price it already holds — so we close
+  // at a real price, never a made-up one.
+  const autoSquareOff: PaperContextValue["autoSquareOff"] = (positionId, price) => {
+    if (!Number.isFinite(price) || price <= 0)
+      return { ok: false, error: "No price available to square off." };
+    const pos = state.open.find((p) => p.id === positionId);
+    if (!pos) return { ok: false, error: "Position not found." };
+
+    // Auto square-off is a real broker action, so charges always apply here.
+    const closed = buildClose(pos, price, { applyCharges: true, autoSquaredOff: true });
+
+    setState((s) => ({
+      balance: s.balance + pos.marginUsed + closed.pnl,
       open: s.open.filter((p) => p.id !== positionId),
       closed: [closed, ...s.closed],
     }));
@@ -223,7 +288,7 @@ export function PaperTradingProvider({ children }: { children: ReactNode }) {
   const exposure = state.open.reduce((sum, p) => sum + p.quantity * p.entryPrice, 0);
 
   return (
-    <PaperContext.Provider value={{ ...state, ready, invested, exposure, leverage: LEVERAGE, openPosition, closePosition, reset }}>
+    <PaperContext.Provider value={{ ...state, ready, invested, exposure, leverage: LEVERAGE, openPosition, closePosition, autoSquareOff, reset }}>
       {children}
     </PaperContext.Provider>
   );

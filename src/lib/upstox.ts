@@ -487,3 +487,88 @@ export async function fetchUpstoxIntradayCandles(
     return null;
   }
 }
+
+// ---------------------------------------------------------------------------
+// NEWS (Upstox News API — instrument-specific, past 7 days)
+// ---------------------------------------------------------------------------
+
+/** A news article as returned to the data layer. Shapes to the app's NewsItem. */
+export interface UpstoxNewsItem {
+  id: string;
+  title: string;
+  summary: string;
+  url?: string;
+  thumbnail?: string;
+  publishedAtMs: number | null;
+}
+
+/**
+ * Fetch recent news for a stock via the Upstox News API.
+ *   GET /v2/news?category=instrument_keys&instrument_keys=NSE_EQ|<ISIN>
+ *
+ * instrument_keys use the "EXCHANGE|ISIN" form — which is exactly the
+ * instrument_key we already store per symbol. Returns India/NSE-native news
+ * for the specific company (past ~7 days). Field names across the docs vary
+ * slightly (heading/headline, article_link/url, thumbnail/thumbnail_url,
+ * published_at), so we read each defensively. Returns null on any failure so
+ * the caller can fall back gracefully.
+ */
+export async function fetchUpstoxNews(symbol: string): Promise<UpstoxNewsItem[] | null> {
+  const token = process.env.UPSTOX_ACCESS_TOKEN;
+  if (!token) return null;
+  const inst = getInstrument(symbol);
+  if (!inst) return null;
+
+  try {
+    const key = inst.instrument_key;
+    const url = `${UPSTOX_BASE}/news?category=instrument_keys&instrument_keys=${encodeURIComponent(key)}`;
+    const res = await fetch(url, {
+      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+
+    const json = (await res.json()) as { data?: unknown };
+    // The response is "an array of objects keyed by instrument". Normalize both
+    // shapes: either data is an array of articles, or an object keyed by the
+    // instrument key whose values are arrays of articles.
+    const raw = json?.data;
+    let articles: Record<string, unknown>[] = [];
+    if (Array.isArray(raw)) {
+      articles = raw as Record<string, unknown>[];
+    } else if (raw && typeof raw === "object") {
+      for (const v of Object.values(raw as Record<string, unknown>)) {
+        if (Array.isArray(v)) articles.push(...(v as Record<string, unknown>[]));
+      }
+    }
+
+    const items: UpstoxNewsItem[] = [];
+    for (const a of articles) {
+      const title = str(a.heading ?? a.headline ?? a.title);
+      if (!title) continue;
+      const link = str(a.article_link ?? a.url ?? a.link);
+      const thumb = str(a.thumbnail ?? a.thumbnail_url ?? a.image);
+      const ts = a.published_at ?? a.publishedAt ?? a.published_time ?? a.timestamp;
+      let publishedAtMs: number | null = null;
+      if (typeof ts === "number") publishedAtMs = ts < 1e12 ? ts * 1000 : ts;
+      else if (typeof ts === "string" && ts) {
+        const parsed = Date.parse(ts);
+        if (!Number.isNaN(parsed)) publishedAtMs = parsed;
+      }
+      items.push({
+        id: link || title,
+        title,
+        summary: str(a.summary ?? a.description) || "",
+        url: link || undefined,
+        thumbnail: thumb || undefined,
+        publishedAtMs,
+      });
+    }
+    return items.length > 0 ? items : null;
+  } catch {
+    return null;
+  }
+}
+
+function str(v: unknown): string {
+  return typeof v === "string" ? v : v == null ? "" : String(v);
+}
