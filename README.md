@@ -59,7 +59,8 @@ The chart expands to full screen with the trade panel still docked, so you can s
 - **Guided "How to read this stock" walkthrough** — a step-by-step tour through a company's fundamentals that explains each number in context and helps you reach your own conclusion.
 - **Live intraday charts** — candlestick charts (TradingView Lightweight Charts) with multiple timeframes, zoom, fullscreen, and an on-chart indicator legend.
 - **53 technical indicators** — trend, momentum, volatility, and volume families, most with configurable settings. Indicators are shown and taught as concepts, never as buy/sell signals.
-- **Paper trading** — a simulated portfolio (₹1,00,000 starting balance, with optional leverage) to practice the mechanics of placing and managing trades using live prices. No real money, no real orders.
+- **Realistic paper trading** — a simulated portfolio (₹1,00,000 starting balance, with optional leverage) to practice placing and managing trades using live prices. Trades carry simulated broker charges (brokerage, STT, exchange fees, GST, stamp duty) so practice P&L reflects real costs, intraday positions auto-square-off at the 3:05 PM cutoff, and trading follows real NSE hours. No real money, no real orders.
+- **Recent news on every stock** — recent, instrument-specific headlines from the Upstox News API, each linking to the full article, with broader market headlines mixed in so the panel stays useful; shows "No recent news" rather than stale headlines when there's nothing current.
 - **Honest data handling** — when a data source has no current figures for a stock, StockSahi shows **"Not available"** rather than displaying stale or misleading numbers, and labels the fiscal year of the figures it does show.
 - **A real learning curriculum** — expandable lessons covering how to read charts, how trading actually works (orders, fills, costs), risk and discipline, and how to think about building an approach.
 
@@ -71,7 +72,7 @@ The chart expands to full screen with the trade panel still docked, so you can s
 - **Styling/UI:** Tailwind CSS v4, shadcn/ui, lucide-react
 - **Charts:** TradingView Lightweight Charts v5 (intraday candlesticks), Recharts (other visuals)
 - **Indicators:** `@debut/indicators`
-- **Data:** Upstox API (live prices, candles, fundamentals); Yahoo Finance (`yahoo-finance2`) for news
+- **Data:** Upstox API (live prices, candles, fundamentals, and news); Yahoo Finance (`yahoo-finance2`) for supplementary quote/chart data
 - **Deployment:** Vercel
 
 ---
@@ -83,6 +84,8 @@ A few choices that shaped the project, beyond just wiring up an API:
 - **Polling instead of WebSockets for live prices.** Live data originally streamed over a WebSocket, but persistent connections don't fit a serverless deployment. Live prices are served by polling a lightweight `/api/quote` endpoint, with a **shared client-side poller** so that every component showing the same symbol uses a single request instead of each making its own.
 
 - **Honesty over completeness in fundamentals.** The fundamentals source is current for most stocks, but for some it returns only old data. Rather than show outdated figures as if they were current, StockSahi detects stale data and shows **"Not available."** It prefers consolidated financials when current and falls back to standalone otherwise, and labels each figure with its fiscal year so freshness is visible and verifiable.
+
+- **Realistic, honest paper trading.** Rather than a frictionless simulator, paper trades behave like a real broker: brokerage, STT, exchange fees, GST, and stamp duty are applied to every trade (verified against a real broker's charge calculator), open intraday positions auto-square-off at the 3:05 PM cutoff with the real penalty, and new intraday trades are blocked after the cutoff — so beginners learn the real mechanics and costs, not a comfortable illusion.
 
 - **Protecting a shared upstream token.** All data flows through one shared API token, so the public API routes add **short-lived response caching with in-flight de-duplication** (repeated requests for the same data collapse into one upstream call) plus **per-IP rate limiting** to prevent abuse. (State is in-memory — effective at this scale; a shared store like Redis would be the next step for larger deployments.)
 
@@ -128,7 +131,7 @@ A few choices that shaped the project, beyond just wiring up an API:
 
 | Variable | Required | Description |
 | --- | --- | --- |
-| `UPSTOX_ACCESS_TOKEN` | Yes | Upstox API access token used for live prices, candles, and fundamentals. Obtain one from an Upstox developer account. Used only on the server. |
+| `UPSTOX_ACCESS_TOKEN` | Yes | Upstox API access token used for live prices, candles, fundamentals, and news. Obtain one from an Upstox developer account. Used only on the server. |
 
 ### Build for production
 
@@ -143,10 +146,10 @@ When deploying to Vercel, add `UPSTOX_ACCESS_TOKEN` as an environment variable i
 
 ## A note on the data
 
-- Market data (prices, candles, fundamentals) comes from the Upstox API; news comes from Yahoo Finance.
+- Market data (prices, candles, fundamentals) and news come from the Upstox API; Yahoo Finance (`yahoo-finance2`) is used for some supplementary quote/chart data.
 - Some stocks may not have current fundamentals available from the data source — these are shown honestly as **"Not available"** rather than with stale numbers.
 - Prices update during NSE market hours (9:15 AM – 3:30 PM IST). Outside those hours, the last traded values are shown.
-- **Paper trading is fully simulated** — it uses live prices but places no real orders and involves no real money.
+- **Paper trading is fully simulated** — it uses live prices but places no real orders and involves no real money. The charges it shows are simulated (what a real broker would deduct) so practice P&L reflects real costs; StockSahi itself is free.
 
 ---
 
